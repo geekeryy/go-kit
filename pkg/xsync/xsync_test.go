@@ -50,7 +50,7 @@ func BenchmarkGroup_Go(b *testing.B) {
 		b.Run("g", func(b *testing.B) {
 			for i:=0;i<b.N;i++{
 				g.Go(func(ctx context.Context) error {
-					http.Get("http://localhost:8080/v2/example/get_source/1")
+					http.Get("http://localhost:8080/v1/user/2")
 					return nil
 				})
 			}
@@ -58,7 +58,7 @@ func BenchmarkGroup_Go(b *testing.B) {
 		})
 		b.Run("normal", func(b *testing.B) {
 			for i:=0;i<b.N;i++ {
-				http.Get("http://localhost:8080/v2/example/get_source/1")
+				http.Get("http://localhost:8080/v1/user/1")
 			}
 		})
 

@@ -8,10 +8,10 @@ import (
 )
 
 type Group struct {
-	wait sync.WaitGroup
-	cxt  context.Context
-	ch   chan struct{}
-	handler func(ctx context.Context)
+	wait       sync.WaitGroup
+	cxt        context.Context
+	ch         chan struct{}
+	errHandler func(ctx context.Context)
 }
 
 type Option func(group *Group)
@@ -23,10 +23,10 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-// WithHandler 错误处理
-func WithHandler(handler func(context.Context)) Option {
+// WithErrHandler 错误处理
+func WithErrHandler(handler func(context.Context)) Option {
 	return func(group *Group) {
-		group.handler = handler
+		group.errHandler = handler
 	}
 }
 
@@ -81,9 +81,9 @@ func (g *Group) Go(f func(context.Context) error) {
 		go func() {
 			defer g.done()
 			if err := g.do(f); err != nil {
-				if g.handler!=nil{
-					g.handler(g.cxt)
-				}else {
+				if g.errHandler != nil {
+					g.errHandler(g.cxt)
+				} else {
 					log.Println("Go err:", err)
 				}
 			}

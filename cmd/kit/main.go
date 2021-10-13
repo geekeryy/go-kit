@@ -81,7 +81,7 @@ func Make(serverName string) error {
 // Clear 清除初始化脚本
 // sed -i '' -e '/kit/,$d' my-server/Makefile
 func Clear(serverName string) error {
-	cmd := exec.Command(`sed`, `-i`, `-e`, `/kit/,$d`, "./"+serverName+"/Makefile")
+	cmd := exec.Command(`sed`, `-i`,``, `-e`, `/kit/,$d`, "./"+serverName+"/Makefile")
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {

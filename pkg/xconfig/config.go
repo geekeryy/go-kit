@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/thedevsaddam/gojsonq/v2"
 	"gopkg.in/yaml.v3"
 
 	"github.com/comeonjy/go-kit/pkg/xsync"
@@ -18,6 +19,7 @@ import (
 type IConfig interface {
 	Scan(v interface{}) error
 	Watch(func(c *Config)) error
+	Get(key string) string
 }
 
 type Source interface {
@@ -30,7 +32,6 @@ type Source interface {
 type Config struct {
 	ctx     context.Context
 	source  Source
-	decoder func([]byte, interface{}) error
 }
 
 type Option func(*Config)
@@ -41,7 +42,7 @@ func New(opts ...Option) IConfig {
 	var once sync.Once
 	once.Do(func() {
 		_cfg = &Config{
-			decoder: defaultDecoder,
+			ctx:     context.Background(),
 		}
 		for _, o := range opts {
 			o(_cfg)
@@ -54,7 +55,7 @@ func New(opts ...Option) IConfig {
 }
 
 func (c *Config) Scan(v interface{}) error {
-	return c.decoder(c.source.Value(), v)
+	return json.Unmarshal(c.source.Value(), v)
 }
 
 // Watch 多次watch也只会收到一个通知
@@ -77,6 +78,12 @@ func (c *Config) Watch(handle func(c *Config)) error {
 		}
 	})
 	return nil
+}
+
+func (c *Config) Get(key string) string {
+	cfg := c.source.Value()
+	value := gojsonq.New().FromString(string(cfg)).Find(key)
+	return value.(string)
 }
 
 func defaultDecoder(data []byte, v interface{}) error {

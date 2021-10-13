@@ -106,11 +106,11 @@ func GrpcLogger(traceName string, logger *xlog.Logger) grpc.UnaryServerIntercept
 
 		ctx = metadata.AppendToOutgoingContext(ctx, traceName, traceID)
 
-		logger.Info(ctx, "grpc", info.FullMethod, req)
+		logger.Info(ctx, "GRPC", info.FullMethod, req)
 		resp, err = handler(ctx, req)
 		if err != nil {
 			s := status.Convert(err)
-			logger.Error(ctx, xerror.DetailsToString(s))
+			logger.Error(ctx, s.Code(), s.Message(), xerror.DetailsToString(s))
 		}
 		return resp, err
 	}

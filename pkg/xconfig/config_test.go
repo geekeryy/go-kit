@@ -3,11 +3,10 @@ package xconfig_test
 import (
 	"context"
 	"log"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/comeonjy/go-kit/pkg/xconfig"
 	"github.com/comeonjy/go-kit/pkg/xconfig/apollo"
@@ -33,7 +32,7 @@ func TestConfig(t *testing.T) {
 		defer cancel()
 		c := xconfig.New(
 			xconfig.WithContext(ctx),
-			xconfig.WithSource(apollo.NewSource(_url, _appId, _clusterName, _nameSpace, _secret)),
+			xconfig.WithSource(apollo.NewSource("http://apollo.dev.jiangyang.me", "go-kit", "default", "application", os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT"))),
 		)
 
 		var vConf atomic.Value
@@ -71,8 +70,7 @@ func TestConfig(t *testing.T) {
 		defer cancel()
 		c := xconfig.New(
 			xconfig.WithContext(ctx),
-			xconfig.WithSource(file.NewSource("Config.yaml")),
-			xconfig.WithDecoder(yaml.Unmarshal),
+			xconfig.WithSource(file.NewSource("config.yaml")),
 		)
 
 		var vConf atomic.Value

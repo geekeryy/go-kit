@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,8 +46,7 @@ func NewSource(url string, appId string, clusterName string, nameSpace string, s
 }
 
 func (a *apollo) WithContext(ctx context.Context) xconfig.Source {
-	newCtx, _ := context.WithCancel(ctx)
-	a.ctx = newCtx
+	a.ctx = ctx
 	return a
 }
 
@@ -110,8 +110,12 @@ func (a *apollo) load() (*apolloConfigs, error) {
 		return nil, err
 	}
 	if len(a.secret) > 0 {
+		parse, err := url.Parse(urlStr)
+		if err != nil {
+			return nil, err
+		}
 		timestamp := fmt.Sprintf("%v", time.Now().UnixNano()/int64(time.Millisecond))
-		sign := signature(timestamp, urlStr, a.secret)
+		sign := signature(timestamp, parse.RequestURI(), a.secret)
 		req.Header.Set("Authorization", fmt.Sprintf("Apollo %s:%s", a.appId, sign))
 		req.Header.Set("Timestamp", timestamp)
 	}

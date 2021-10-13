@@ -2,18 +2,23 @@ package xenv
 
 import (
 	"os"
+	"strings"
 )
 
 var _envMap map[string]string
 
-func Init(envMap map[string]string) {
-	_envMap=make(map[string]string)
+func Init(appName string, envMap map[string]string) {
+	_envMap = make(map[string]string)
 	for k, v := range envMap {
 		if value := os.Getenv(k); len(value) > 0 {
 			_envMap[k] = value
-		} else {
-			_envMap[k] = v
+			continue
 		}
+		if value := os.Getenv(k + "_" + strings.ToUpper(strings.ReplaceAll(appName,"-","_"))); len(value) > 0 {
+			_envMap[k] = value
+			continue
+		}
+		_envMap[k] = v
 	}
 }
 

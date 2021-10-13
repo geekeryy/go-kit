@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/comeonjy/go-kit/pkg/xerror"
 	"github.com/comeonjy/go-kit/pkg/xlog"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -19,7 +18,6 @@ func HttpErrorHandler(logger *xlog.Logger) runtime.ErrorHandlerFunc {
 	return func(ctx context.Context, mux *runtime.ServeMux, m runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
 		s := status.Convert(err)
 		resp := fmt.Sprintf(`{"code":%d,"msg":"%s"}`, int(s.Code()), s.Message())
-		logger.Error(ctx, resp, xerror.DetailsToString(s))
 		w.Write([]byte(resp))
 	}
 }
@@ -34,13 +32,14 @@ func HttpLogger(traceName string, logger *xlog.Logger) func(next http.Handler) h
 			}
 			ctx := metadata.AppendToOutgoingContext(r.Context(), traceName, traceID)
 			r = r.WithContext(ctx)
+			r.Header.Set(runtime.MetadataHeaderPrefix+traceName, traceID)
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(b))
-			logger.Info(ctx, r.Method, r.URL, string(b))
+			logger.Info(ctx, "HTTP", r.Method, r.URL, string(b))
 			next.ServeHTTP(w, r)
 		})
 	}

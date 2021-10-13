@@ -34,7 +34,7 @@ func New(opt ...Option) *Logger {
 }
 
 func Info(ctx context.Context, v ...interface{}) {
-	_logger.Info(ctx, v)
+	_logger.Info(ctx, v...)
 }
 
 func Debug(ctx context.Context, v ...interface{}) {
@@ -50,7 +50,7 @@ func (l *Logger) Info(ctx context.Context, v ...interface{}) {
 	if len(l.traceName) > 0 {
 		traceID = l.getTraceID(ctx)
 	}
-	log.Println(traceID, "INFO", v)
+	l.Println(traceID, "INFO", v...)
 }
 
 func (l *Logger) Debug(ctx context.Context, v ...interface{}) {
@@ -63,10 +63,10 @@ func (l *Logger) Debug(ctx context.Context, v ...interface{}) {
 	}
 	if len(l.feishuUrl) > 0 {
 		if err := l.postFeishu(v); err != nil {
-			log.Println(traceID, "SYSTEM", v)
+			l.Println(traceID, "SYSTEM", v...)
 		}
 	}
-	log.Println(traceID, "DEBUG", v)
+	l.Println(traceID, "DEBUG", v...)
 }
 
 func (l *Logger) Error(ctx context.Context, v ...interface{}) {
@@ -76,10 +76,23 @@ func (l *Logger) Error(ctx context.Context, v ...interface{}) {
 	}
 	if len(l.feishuUrl) > 0 {
 		if err := l.postFeishu(v); err != nil {
-			log.Println(traceID, "SYSTEM", v)
+			l.Println(traceID, "SYSTEM", v...)
 		}
 	}
-	log.Println(traceID, "ERROR", v)
+	l.Println(traceID, "ERROR", v...)
+}
+
+func (l *Logger) Println(traceID string, types string, v ...interface{}) {
+	log.Println(traceID, types, v)
+}
+
+// Printf 实现 xmysql.Writer
+func (l *Logger) Printf(ctx context.Context, fmtStr string, v ...interface{}) {
+	var traceID string
+	if len(l.traceName) > 0 {
+		traceID = l.getTraceID(ctx)
+	}
+	log.Println(traceID, fmt.Sprintf(fmtStr, v...))
 }
 
 func (l *Logger) getTraceID(ctx context.Context) string {

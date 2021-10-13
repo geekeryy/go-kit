@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"path"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/comeonjy/go-kit/pkg/xconfig"
 	"github.com/comeonjy/go-kit/pkg/xsync"
+	"github.com/ghodss/yaml"
 )
 
 type file struct {
@@ -20,8 +22,13 @@ type file struct {
 	content atomic.Value
 }
 
-func (f *file) Value() []byte {
-	return f.content.Load().([]byte)
+const (
+	_YAML = "_YAML"
+)
+
+var _extMap = map[string]string{
+	".yaml": _YAML,
+	".yml":  _YAML,
 }
 
 func (f *file) Load() error {
@@ -33,14 +40,29 @@ func (f *file) Load() error {
 	return nil
 }
 
+func (f *file) Value() []byte {
+	return f.content.Load().([]byte)
+}
+
 func (f *file) WithContext(ctx context.Context) xconfig.Source {
-	newCtx, _ := context.WithCancel(ctx)
-	f.ctx = newCtx
+	f.ctx = ctx
 	return f
 }
 
 func (f *file) load() ([]byte, error) {
-	return ioutil.ReadFile(f.name)
+	readFile, err := ioutil.ReadFile(f.name)
+	if err != nil {
+		return nil, err
+	}
+	ext := path.Ext(f.name)
+	switch _extMap[ext] {
+	case _YAML:
+		readFile, err = yaml.YAMLToJSON(readFile)
+		if err != nil {
+			return nil,err
+		}
+	}
+	return readFile,nil
 }
 
 func (f *file) Watch() (chan struct{}, error) {

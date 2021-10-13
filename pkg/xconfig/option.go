@@ -15,10 +15,3 @@ func WithSource(s Source) Option {
 		c.source = s.WithContext(c.ctx)
 	}
 }
-
-// WithDecoder 解码器
-func WithDecoder(decoder func([]byte, interface{}) error) Option {
-	return func(c *Config) {
-		c.decoder = decoder
-	}
-}

@@ -21,8 +21,8 @@ func WithInfo(serviceName, env string) Option {
 	}
 }
 
-func WithMode(debug bool) Option {
+func WithDebug() Option {
 	return func(l *Logger) {
-		l.debug = debug
+		l.debug = true
 	}
 }
