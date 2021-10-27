@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -46,9 +47,9 @@ func TestGoroutine_Go(t *testing.T) {
 
 func BenchmarkGroup_Go(b *testing.B) {
 	b.Run("c10k", func(b *testing.B) {
-		g:=xsync.NewGroup(xsync.WithMaxGoNum(100))
 		b.Run("g", func(b *testing.B) {
-			for i:=0;i<b.N;i++{
+			g := xsync.NewGroup(xsync.WithMaxGoNum(100))
+			for i := 0; i < b.N; i++ {
 				g.Go(func(ctx context.Context) error {
 					http.Get("http://localhost:8080/v1/user/2")
 					return nil
@@ -56,8 +57,19 @@ func BenchmarkGroup_Go(b *testing.B) {
 			}
 			g.Wait()
 		})
-		b.Run("normal", func(b *testing.B) {
-			for i:=0;i<b.N;i++ {
+		b.Run("go", func(b *testing.B) {
+			w := sync.WaitGroup{}
+			for i := 0; i < b.N; i++ {
+				w.Add(1)
+				go func() {
+					defer w.Done()
+					http.Get("http://localhost:8080/v1/user/1")
+				}()
+				w.Wait()
+			}
+		})
+		b.Run("serial", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
 				http.Get("http://localhost:8080/v1/user/1")
 			}
 		})
