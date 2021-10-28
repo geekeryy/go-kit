@@ -8,6 +8,7 @@ import (
 )
 
 type Group struct {
+	uuid       string
 	wait       sync.WaitGroup
 	cxt        context.Context
 	ch         chan struct{}
@@ -38,6 +39,13 @@ func WithMaxGoNum(maxGoNum int64) Option {
 	}
 	return func(group *Group) {
 		group.ch = make(chan struct{}, maxGoNum)
+	}
+}
+
+// WithUUID 唯一标识
+func WithUUID(uuid string) Option {
+	return func(group *Group) {
+		group.uuid = uuid
 	}
 }
 
@@ -84,7 +92,7 @@ func (g *Group) Go(f func(context.Context) error) {
 				if g.errHandler != nil {
 					g.errHandler(g.cxt)
 				} else {
-					log.Println("Go err:", err)
+					log.Printf("Go err: %s %+v", g.uuid, err)
 				}
 			}
 		}()

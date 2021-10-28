@@ -32,6 +32,7 @@ func TestConfig(t *testing.T) {
 		defer cancel()
 		c := xconfig.New(
 			xconfig.WithContext(ctx),
+			xconfig.WithWatchInterval(time.Second*2),
 			xconfig.WithSource(apollo.NewSource("http://apollo.dev.jiangyang.me", "go-kit", "default", "application", os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT"))),
 		)
 
@@ -70,6 +71,7 @@ func TestConfig(t *testing.T) {
 		defer cancel()
 		c := xconfig.New(
 			xconfig.WithContext(ctx),
+			xconfig.WithWatchInterval(time.Second*2),
 			xconfig.WithSource(file.NewSource("config.yaml")),
 		)
 
@@ -88,6 +90,22 @@ func TestConfig(t *testing.T) {
 				time.Sleep(time.Second)
 			}
 		})
+		ch1 := make(chan struct{}, 1)
+		ch2 := make(chan struct{}, 1)
+		c.Subscribe("d1", ch1)
+		c.Subscribe("d2", ch2)
+
+		xsync.NewGroup().Go(func(ctx context.Context) error {
+			for {
+				log.Println("ch1", <-ch1)
+			}
+		})
+		xsync.NewGroup().Go(func(ctx context.Context) error {
+			//for {
+			//	log.Println("ch2",<-ch2)
+			//}
+			return nil
+		})
 
 		if err := c.Watch(func(config *xconfig.Config) {
 			if err := config.Scan(&tempConf); err != nil {
@@ -95,6 +113,7 @@ func TestConfig(t *testing.T) {
 				return
 			}
 			vConf.Store(tempConf)
+			log.Println("w1")
 		}); err != nil {
 			t.Error(err)
 			return
@@ -106,6 +125,7 @@ func TestConfig(t *testing.T) {
 				return
 			}
 			vConf.Store(tempConf)
+			log.Println("w2")
 		}); err != nil {
 			t.Error(err)
 			return

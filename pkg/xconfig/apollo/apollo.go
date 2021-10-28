@@ -68,18 +68,18 @@ func (a *apollo) Value() []byte {
 	return a.content.Load().([]byte)
 }
 
-func (a *apollo) Watch() (chan struct{}, error) {
+func (a *apollo) Watch(interval time.Duration) (chan struct{}, error) {
 	var diff chan struct{}
 	a.once.Do(func() {
 		diff = make(chan struct{})
-		xsync.NewGroup(xsync.WithContext(a.ctx)).Go(func(ctx context.Context) error {
+		xsync.NewGroup(xsync.WithUUID("Apollo Watch"), xsync.WithContext(a.ctx)).Go(func(ctx context.Context) error {
 			defer close(diff)
 			// TODO 退避算法
-			ticker := time.NewTicker(time.Second * 5)
+			ticker := time.NewTicker(interval)
 			for {
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("apollo watcher exit %w", ctx.Err())
+					return ctx.Err()
 				case <-ticker.C:
 					get, err := a.load()
 					if err != nil {

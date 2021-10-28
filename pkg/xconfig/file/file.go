@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"path"
@@ -59,24 +58,24 @@ func (f *file) load() ([]byte, error) {
 	case _YAML:
 		readFile, err = yaml.YAMLToJSON(readFile)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
 	}
-	return readFile,nil
+	return readFile, nil
 }
 
-func (f *file) Watch() (chan struct{}, error) {
+func (f *file) Watch(interval time.Duration) (chan struct{}, error) {
 	var err error
 	var diff chan struct{}
 	f.once.Do(func() {
 		diff = make(chan struct{})
-		xsync.NewGroup(xsync.WithContext(f.ctx)).Go(func(ctx context.Context) error {
+		xsync.NewGroup(xsync.WithUUID("File Watch"), xsync.WithContext(f.ctx)).Go(func(ctx context.Context) error {
 			defer close(diff)
-			ticker := time.NewTicker(time.Second * 5)
+			ticker := time.NewTicker(interval)
 			for {
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("file watcher exit %w", ctx.Err())
+					return ctx.Err()
 				case <-ticker.C:
 					readFile, err := f.load()
 					if err != nil {
@@ -85,7 +84,6 @@ func (f *file) Watch() (chan struct{}, error) {
 					}
 					if string(readFile) != string(f.Value()) {
 						f.content.Store(readFile)
-						log.Println(f.content.Load())
 						diff <- struct{}{}
 					}
 				}
