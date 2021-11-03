@@ -22,11 +22,9 @@ func TestHttpClient_Get(t *testing.T) {
 				statusCode, _, err := c.Get("http://localhost:8080/v1/ping")
 				if err != nil {
 					t.Error(err)
-					//return errors.WithMessage(err, time.Now().Format("2006-01-02 15:04:05"))
 				}
 				if statusCode != http.StatusOK {
 					t.Error(statusCode)
-					//return errors.WithMessage(errors.New(fmt.Sprintf("%d", statusCode)), time.Now().Format("2006-01-02 15:04:05"))
 				}
 			}
 			return nil

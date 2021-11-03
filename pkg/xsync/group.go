@@ -104,7 +104,7 @@ func (g *Group) Go(f func(context.Context) error) {
 func (g *Group) do(f func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("go panic : %s", r)
+			err = fmt.Errorf("go panic : %s %s", g.uuid, r)
 			return
 		}
 	}()
