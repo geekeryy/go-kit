@@ -118,7 +118,11 @@ func (c *Config) Watch(handle func(c *Config)) error {
 func (c *Config) Get(key string) string {
 	cfg := c.source.Value()
 	value := gojsonq.New().FromString(string(cfg)).Find(key)
-	return value.(string)
+	v, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return v
 }
 
 func defaultDecoder(data []byte, v interface{}) error {
