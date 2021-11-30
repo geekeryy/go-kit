@@ -17,6 +17,8 @@ import (
 // 2.通过key获取配置
 // 3.订阅配置变化
 type IConfig interface {
+	// Load 强制加载配置
+	Load() error
 	// Scan 将资源加载到指定结构体
 	Scan(v interface{}) error
 	// Watch 创建资源监听 处理资源变化
@@ -27,8 +29,6 @@ type IConfig interface {
 	Subscribe(key string, ch chan struct{})
 	// UnSubscribe 用户取消订阅
 	UnSubscribe(key string)
-	// Reload 被动触发重载配置
-	Reload() error
 }
 
 // Source 资源接口
@@ -37,8 +37,6 @@ type Source interface {
 	Load() error
 	// Value 获取资源中的配置数据
 	Value() []byte
-	// Reload 重载配置到资源
-	Reload() error
 	// Watch 主动轮训监听配置
 	Watch(interval time.Duration) (chan struct{}, error)
 	WithContext(ctx context.Context) Source
@@ -93,8 +91,8 @@ func (c *Config) publish() {
 	}
 }
 
-func (c *Config) Reload() error {
-	if err := c.source.Reload(); err != nil {
+func (c *Config) Load() error {
+	if err := c.source.Load(); err != nil {
 		return err
 	}
 	go c.publish()
