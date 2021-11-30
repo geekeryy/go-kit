@@ -7,6 +7,7 @@ import (
 )
 
 type Server struct {
+	UnimplementedReloadConfigServer
 	conf xconfig.ReloadConfigInterface
 }
 
