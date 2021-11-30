@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -12,9 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var root = &cobra.Command{}
-
-var newProject = &cobra.Command{
+var NewProject = &cobra.Command{
 	Use:   "new",
 	Short: "n",
 	Long:  "new project name",
@@ -22,18 +20,11 @@ var newProject = &cobra.Command{
 		if len(args) < 1 {
 			log.Fatalln("invalid param", args)
 		}
-		Run(args[0])
+		New(args[0])
 	},
 }
 
-func main() {
-	root.AddCommand(newProject)
-	if err := root.Execute(); err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func Run(serverName string) {
+func New(serverName string) {
 	if err := Clone("git@github.com:comeonjy/go-layout.git", serverName); err != nil {
 		log.Fatalln("Clone", err)
 	}
@@ -89,3 +80,4 @@ func Clear(serverName string) error {
 	}
 	return nil
 }
+

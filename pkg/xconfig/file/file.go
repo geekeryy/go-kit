@@ -93,6 +93,18 @@ func (f *file) Watch(interval time.Duration) (chan struct{}, error) {
 	return diff, err
 }
 
+// NewSource 创建文件配置资源 支持json/yaml格式
 func NewSource(name string) xconfig.Source {
 	return &file{name: name}
+}
+
+func (f *file) Reload() error {
+	readFile, err := f.load()
+	if err != nil {
+		return err
+	}
+	if string(readFile) != string(f.Value()) {
+		f.content.Store(readFile)
+	}
+	return nil
 }

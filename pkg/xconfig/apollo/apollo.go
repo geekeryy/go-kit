@@ -31,7 +31,7 @@ type apollo struct {
 	nameSpace   string
 	secret      string
 	content     atomic.Value
-	once        sync.Once
+	watchOnce   sync.Once
 }
 
 func NewSource(url string, appId string, clusterName string, nameSpace string, secret string) xconfig.Source {
@@ -68,9 +68,26 @@ func (a *apollo) Value() []byte {
 	return a.content.Load().([]byte)
 }
 
+func (a *apollo) Reload() error {
+	get, err := a.load()
+	if err != nil {
+		return err
+	}
+	if get.ReleaseKey != a.releaseKey && a.releaseKey != "" {
+		a.releaseKey = get.ReleaseKey
+		marshal, err := json.Marshal(get.Configurations)
+		if err != nil {
+			return err
+		}
+		a.content.Store(marshal)
+	}
+	return nil
+}
+
+// Watch 轮训
 func (a *apollo) Watch(interval time.Duration) (chan struct{}, error) {
 	var diff chan struct{}
-	a.once.Do(func() {
+	a.watchOnce.Do(func() {
 		diff = make(chan struct{})
 		xsync.NewGroup(xsync.WithUUID("Apollo Watch"), xsync.WithContext(a.ctx)).Go(func(ctx context.Context) error {
 			defer close(diff)

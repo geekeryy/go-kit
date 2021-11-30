@@ -1,0 +1,12 @@
+syntax = "proto3";
+package reloadconfig;
+
+option  go_package = "./reloadconfig";
+
+service ReloadConfig {
+  rpc ReloadConfig(Empty)returns (Empty){};
+}
+
+message Empty {
+
+}

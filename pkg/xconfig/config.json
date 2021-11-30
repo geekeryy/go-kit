@@ -1,0 +1,10 @@
+{
+  "mode": "debug",
+  "app": {
+    "name": "go-layout",
+    "port": [
+      80,
+      81
+    ]
+  }
+}

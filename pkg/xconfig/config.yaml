@@ -1,1 +1,6 @@
-mode: debug12311234
+mode: debug121
+app:
+  name: go-layout
+  port:
+    - 80
+    - 81

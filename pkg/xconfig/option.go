@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+type Option func(*Config)
+
 // WithContext 传递上下文
 func WithContext(ctx context.Context) Option {
 	return func(c *Config) {

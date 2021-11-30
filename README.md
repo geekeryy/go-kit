@@ -14,6 +14,8 @@
 
 ### TODO
 
+- [ ] 支持config.Get("yaml")
+
 ### 使用
 ```shell
 # 安装
