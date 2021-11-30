@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/comeonjy/go-kit/pkg/xsync"
@@ -29,6 +30,9 @@ type IConfig interface {
 	Subscribe(key string, ch chan struct{})
 	// UnSubscribe 用户取消订阅
 	UnSubscribe(key string)
+
+	StoreValue(val interface{})
+	LoadValue() (val interface{})
 }
 
 // Source 资源接口
@@ -49,6 +53,7 @@ type Config struct {
 	interval   time.Duration
 	source     Source
 	watchOnce  sync.Once
+	value      atomic.Value
 }
 
 // New 创建配置类
@@ -65,6 +70,14 @@ func New(opts ...Option) IConfig {
 		panic("Config:" + err.Error())
 	}
 	return _cfg
+}
+
+func (c *Config) StoreValue(val interface{}) {
+	c.value.Store(val)
+}
+
+func (c *Config) LoadValue() (val interface{}) {
+	return c.value.Load()
 }
 
 func (c *Config) Scan(v interface{}) error {
