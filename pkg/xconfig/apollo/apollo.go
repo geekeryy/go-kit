@@ -15,98 +15,78 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/comeonjy/go-kit/pkg/xconfig"
-	"github.com/comeonjy/go-kit/pkg/xsync"
 )
 
 type apollo struct {
-	ctx         context.Context
-	releaseKey  string
-	url         string
-	appId       string
-	clusterName string
-	nameSpace   string
-	secret      string
-	content     atomic.Value
-	watchOnce   sync.Once
+	url          string
+	appId        string
+	clusterName  string
+	nameSpaceMap map[string]string
+	secret       string
+	configMap    map[string]interface{}
+	mutex        sync.Mutex
 }
 
-func NewSource(url string, appId string, clusterName string, nameSpace string, secret string) xconfig.Source {
+func NewSource(url string, appId string, clusterName string, secret string, nameSpace ...string) xconfig.Source {
+	nameSpaceMap := map[string]string{
+		"application": "",
+	}
+	for _, v := range nameSpace {
+		nameSpaceMap[v] = ""
+	}
 	return &apollo{
-		ctx:         context.Background(),
-		url:         url,
-		appId:       appId,
-		clusterName: clusterName,
-		nameSpace:   nameSpace,
-		secret:      secret,
+		url:          url,
+		appId:        appId,
+		clusterName:  clusterName,
+		nameSpaceMap: nameSpaceMap,
+		secret:       secret,
 	}
 }
 
-func (a *apollo) WithContext(ctx context.Context) xconfig.Source {
-	a.ctx = ctx
-	return a
+func (a *apollo) GetConfig() ([]byte, error) {
+	if err := a.getConfig(); err != nil {
+		return nil, err
+	}
+	marshal, err := json.Marshal(a.configMap)
+	if err != nil {
+		return nil, err
+	}
+	return marshal, nil
 }
 
-func (a *apollo) Load() error {
-	aConfigs, err := a.load()
-	if err != nil {
-		return err
+func (a *apollo) getConfig() error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	for k, v := range a.nameSpaceMap {
+		aConfigs, err := a.load(k, v)
+		log.Println(k, v, aConfigs)
+		if err != nil {
+			return err
+		}
+		if aConfigs == nil {
+			continue
+		}
+		a.nameSpaceMap[k] = aConfigs.ReleaseKey
+		marshal, err := json.Marshal(aConfigs.Configurations)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(marshal, &a.configMap); err != nil {
+			return err
+		}
 	}
-	a.releaseKey = aConfigs.ReleaseKey
-	marshal, err := json.Marshal(aConfigs.Configurations)
-	if err != nil {
-		return err
-	}
-	a.content.Store(marshal)
 	return nil
 }
 
-func (a *apollo) Value() []byte {
-	return a.content.Load().([]byte)
-}
-
-// Watch 轮训
-func (a *apollo) Watch(interval time.Duration) (chan struct{}, error) {
-	var diff chan struct{}
-	a.watchOnce.Do(func() {
-		diff = make(chan struct{})
-		xsync.NewGroup(xsync.WithUUID("Apollo Watch"), xsync.WithContext(a.ctx)).Go(func(ctx context.Context) error {
-			defer close(diff)
-			// TODO 退避算法
-			ticker := time.NewTicker(interval)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-ticker.C:
-					get, err := a.load()
-					if err != nil {
-						log.Println("Config", err)
-						continue
-					}
-					if get.ReleaseKey != a.releaseKey && a.releaseKey != "" {
-						a.releaseKey = get.ReleaseKey
-						marshal, err := json.Marshal(get.Configurations)
-						if err != nil {
-							log.Println("Config", err)
-							continue
-						}
-						a.content.Store(marshal)
-						diff <- struct{}{}
-					}
-				}
-			}
-		})
-	})
-	return diff, nil
-}
-
-func (a *apollo) load() (*apolloConfigs, error) {
-	urlStr := fmt.Sprintf("%s/configs/%s/%s/%s", a.url, a.appId, a.clusterName, a.nameSpace)
-	req, err := http.NewRequestWithContext(a.ctx, http.MethodGet, urlStr, nil)
+func (a *apollo) load(nameSpace, releaseKey string) (*apolloConfigs, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	urlStr := fmt.Sprintf("%s/configs/%s/%s/%s?releaseKey=%s", a.url, a.appId, a.clusterName, nameSpace, releaseKey)
+	log.Println("POST", urlStr)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +104,9 @@ func (a *apollo) load() (*apolloConfigs, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotModified {
+		return nil, nil
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
