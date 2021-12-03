@@ -48,7 +48,18 @@ func GetEnv(envName string) string {
 	return ""
 }
 
-func GetApolloCluster(namespace string) string {
+func GetApolloCluster(cluster string) string {
+	switch _envMap[AppEnv] {
+	case _local:
+		return "local"
+	case _test:
+	case _dev:
+	case _prod:
+	}
+	return cluster
+}
+
+func GetApolloNamespace(namespace string) string {
 	switch _envMap[AppEnv] {
 	case _local:
 		return namespace + ".local"
