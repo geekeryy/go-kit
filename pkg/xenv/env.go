@@ -17,13 +17,13 @@ const (
 	ApolloSecret = "APOLLO_ACCESS_KEY_SECRET"
 )
 
-func Init(envMap map[string]string) {
+func Init(userConf map[string]string) {
 	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
 		_envMap[AppEnv] = appEnv
 	} else {
-		panic("invalid APP_NAME")
+		panic("invalid APP_ENV")
 	}
-	appName := envMap[AppName]
+	appName := userConf[AppName]
 	if len(appName) == 0 {
 		if appName = os.Getenv(AppName); len(appName) > 0 {
 			_envMap[AppName] = appName
@@ -31,8 +31,7 @@ func Init(envMap map[string]string) {
 			panic("invalid APP_NAME")
 		}
 	}
-	_envMap = make(map[string]string)
-	for k, v := range envMap {
+	for k, v := range userConf {
 		if value := os.Getenv(k); len(value) > 0 {
 			_envMap[k] = value
 			continue
