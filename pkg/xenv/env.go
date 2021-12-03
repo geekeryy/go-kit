@@ -21,14 +21,14 @@ func Init(userConf map[string]string) {
 	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
 		_envMap[AppEnv] = appEnv
 	} else {
-		panic("invalid APP_ENV")
+		_envMap[AppEnv] = _local
 	}
 	appName := userConf[AppName]
 	if len(appName) == 0 {
 		if appName = os.Getenv(AppName); len(appName) > 0 {
 			_envMap[AppName] = appName
 		} else {
-			panic("invalid APP_NAME")
+			_envMap[AppName] = "my-app"
 		}
 	}
 	for k, v := range userConf {
