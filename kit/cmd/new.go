@@ -60,7 +60,7 @@ func Clone(url string, serverName string) error {
 
 // Make 执行初始化脚本
 func Make(serverName string) error {
-	cmd := exec.Command("make", "-C", serverName, "server_name="+serverName, "kit")
+	cmd := exec.Command("make", "-C", serverName, "SERVER_NAME="+serverName, "kit")
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
