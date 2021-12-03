@@ -5,21 +5,21 @@ import (
 	"strings"
 )
 
-var _envMap map[string]string
+var _envMap = make(map[string]string)
 
 const (
-	AppEnv        = "APP_ENV"
-	AppName       = "APP_NAME"
-	AppVersion    = "APP_VERSION"
-	TraceName     = "TRACE_NAME"
-	ApolloUrl     = "APOLLO_URL"
-	ApolloAppID   = "APOLLO_APPID"
-	ApolloSecret  = "APOLLO_ACCESS_KEY_SECRET"
+	AppEnv       = "APP_ENV"
+	AppName      = "APP_NAME"
+	AppVersion   = "APP_VERSION"
+	TraceName    = "TRACE_NAME"
+	ApolloUrl    = "APOLLO_URL"
+	ApolloAppID  = "APOLLO_APPID"
+	ApolloSecret = "APOLLO_ACCESS_KEY_SECRET"
 )
 
 func Init(envMap map[string]string) {
 	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
-		_envMap[appEnv] = appEnv
+		_envMap[AppEnv] = appEnv
 	} else {
 		panic("invalid APP_NAME")
 	}
@@ -69,13 +69,13 @@ func GetApolloCluster(cluster string) string {
 func GetApolloNamespace(namespace string) string {
 	switch _envMap[AppEnv] {
 	case _local:
-		return "dev."+namespace + ".local"
+		return "dev." + namespace + ".local"
 	case _test:
-		return "dev."+namespace + ".test"
+		return "dev." + namespace + ".test"
 	case _dev:
-		return "dev."+namespace
+		return "dev." + namespace
 	case _prod:
-		return "dev."+namespace + ".prod"
+		return "dev." + namespace + ".prod"
 	}
 	return namespace
 }
