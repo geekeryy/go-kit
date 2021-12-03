@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -63,7 +62,6 @@ func (a *apollo) getConfig() error {
 
 	for k, v := range a.nameSpaceMap {
 		aConfigs, err := a.load(k, v)
-		log.Println(k, v, aConfigs)
 		if err != nil {
 			return err
 		}
@@ -85,7 +83,6 @@ func (a *apollo) getConfig() error {
 func (a *apollo) load(nameSpace, releaseKey string) (*apolloConfigs, error) {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	urlStr := fmt.Sprintf("%s/configs/%s/%s/%s?releaseKey=%s", a.url, a.appId, a.clusterName, nameSpace, releaseKey)
-	log.Println("POST", urlStr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, err

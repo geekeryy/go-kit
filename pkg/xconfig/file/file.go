@@ -1,7 +1,6 @@
 package file
 
 import (
-	"context"
 	"io/ioutil"
 	"path"
 
@@ -10,7 +9,6 @@ import (
 )
 
 type file struct {
-	ctx  context.Context
 	name string
 }
 
@@ -40,9 +38,8 @@ func (f *file) GetConfig() ([]byte, error) {
 }
 
 // NewSource 创建文件配置资源 支持json/yaml格式
-func NewSource(ctx context.Context, name string) xconfig.Source {
+func NewSource(name string) xconfig.Source {
 	return &file{
-		ctx:  ctx,
 		name: name,
 	}
 }

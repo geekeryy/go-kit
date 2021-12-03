@@ -3,7 +3,9 @@ package xconfig
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"reflect"
 	"sync/atomic"
 	"time"
 
@@ -18,24 +20,20 @@ import (
 // 2.通过key获取配置
 // 3.订阅配置变化
 type IConfig interface {
-	// Load 加载配置 被动通知
-	Load() error
+	// ReLoad 加载配置 被动通知
+	ReLoad() error
 
-	// Scan 将资源加载到指定结构体
-	Scan(v interface{}) error
+	// LoadValue 获取Value
+	LoadValue() interface{}
 
-	// GetValue 支持json/yaml通过键名获取值 不支持数组
-	GetValue(key string) string
+	// GetString 支持json/yaml通过键名获取值 不支持数组
+	GetString(key string) string
 
 	// Subscribe 用户订阅Watch事件
 	Subscribe(key string, ch chan struct{})
 	// UnSubscribe 用户取消订阅
 	UnSubscribe(key string)
 
-	// StoreValue 存储Value
-	StoreValue(val interface{})
-	// LoadValue 获取Value
-	LoadValue() (val interface{})
 	// Close 关闭
 	Close()
 }
@@ -56,16 +54,19 @@ type Config struct {
 	subscriber    map[string]chan struct{}
 	watchInterval time.Duration
 }
-type StoreHandlerFun func(c *Config, data []byte) bool
+type StoreHandlerFun func(data []byte) interface{}
 
-func defaultStoreHandler(c *Config, data []byte) bool {
-	c.StoreValue(data)
-	return true
+func defaultStoreHandler(data []byte) interface{} {
+	m := make(map[string]interface{})
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil
+	}
+	return m
 }
 
 // New 创建配置类
-// storeHandler 描述资源以何种形式存储到Config.value 返回是否更新
-func New(ctx context.Context, storeHandler StoreHandlerFun, source Source, opts ...Option) IConfig {
+// storeHandler 描述资源以何种形式存储到Config.value 返回需要存储的值
+func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts ...Option) IConfig {
 	if source == nil {
 		panic(errors.New("invalid source"))
 	}
@@ -73,13 +74,12 @@ func New(ctx context.Context, storeHandler StoreHandlerFun, source Source, opts 
 		storeHandler = defaultStoreHandler
 	}
 	_cfg := &Config{
-		ctx:          ctx,
 		source:       source,
 		storeHandler: storeHandler,
 		subscriber:   make(map[string]chan struct{}),
 	}
 
-	_cfg.ctx, _cfg.cancel = context.WithCancel(context.Background())
+	_cfg.ctx, _cfg.cancel = context.WithCancel(ctx)
 
 	for _, o := range opts {
 		o(_cfg)
@@ -89,22 +89,14 @@ func New(ctx context.Context, storeHandler StoreHandlerFun, source Source, opts 
 		_cfg.watch()
 	}
 
-	if err := _cfg.Load(); err != nil {
+	if err := _cfg.ReLoad(); err != nil {
 		panic("Config:" + err.Error())
 	}
 	return _cfg
 }
 
-func (c *Config) StoreValue(val interface{}) {
-	c.value.Store(val)
-}
-
-func (c *Config) LoadValue() (val interface{}) {
+func (c *Config) LoadValue() interface{} {
 	return c.value.Load()
-}
-
-func (c *Config) Scan(v interface{}) error {
-	return json.Unmarshal(c.value.Load().([]byte), v)
 }
 
 func (c *Config) Subscribe(key string, ch chan struct{}) {
@@ -127,7 +119,7 @@ func (c *Config) publish() {
 	}
 }
 
-func (c *Config) Load() error {
+func (c *Config) ReLoad() error {
 	marshal, err := c.source.GetConfig()
 	if err != nil {
 		return err
@@ -135,14 +127,22 @@ func (c *Config) Load() error {
 	if marshal == nil {
 		return nil
 	}
-	if c.value.Load() == nil {
-		c.storeHandler(c, marshal)
+
+	value := c.storeHandler(marshal)
+	if value == nil {
+		return nil
 	}
-	if c.storeHandler(c, marshal) {
+	if c.value.Load() == nil {
+		c.value.Store(value)
+		return nil
+	}
+	if !reflect.DeepEqual(c.value.Load(), value) {
 		log.Println("配置更新", string(marshal))
+		c.value.Store(c.storeHandler(marshal))
 		if len(c.subscriber) > 0 {
 			go c.publish()
 		}
+		return nil
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func (c *Config) watch() {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-ticker.C:
-				if err := c.Load(); err != nil {
+				if err := c.ReLoad(); err != nil {
 					log.Println(err)
 				}
 			}
@@ -165,17 +165,13 @@ func (c *Config) watch() {
 	})
 }
 
-func (c *Config) GetValue(key string) string {
+func (c *Config) GetString(key string) string {
 	cfg, err := json.Marshal(c.value.Load())
 	if err != nil {
 		return ""
 	}
 	value := gojsonq.New().FromString(string(cfg)).Find(key)
-	v, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return v
+	return fmt.Sprint(value)
 }
 
 func (c *Config) Close() {
