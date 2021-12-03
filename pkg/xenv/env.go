@@ -53,8 +53,11 @@ func GetApolloCluster(cluster string) string {
 	case _local:
 		return "local"
 	case _test:
+		return "test"
 	case _dev:
+		return "default"
 	case _prod:
+		return "prod"
 	}
 	return cluster
 }
@@ -62,10 +65,13 @@ func GetApolloCluster(cluster string) string {
 func GetApolloNamespace(namespace string) string {
 	switch _envMap[AppEnv] {
 	case _local:
-		return namespace + ".local"
+		return "dev."+namespace + ".local"
 	case _test:
+		return "dev."+namespace + ".test"
 	case _dev:
+		return "dev."+namespace
 	case _prod:
+		return "dev."+namespace + ".prod"
 	}
 	return namespace
 }
