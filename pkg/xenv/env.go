@@ -7,14 +7,33 @@ import (
 
 var _envMap map[string]string
 
-func Init(appName string, envMap map[string]string) {
+const (
+	AppEnv        = "APP_ENV"
+	AppName       = "APP_NAME"
+	AppVersion    = "APP_VERSION"
+	TraceName     = "TRACE_NAME"
+	ApolloUrl     = "APOLLO_URL"
+	ApolloAppID   = "APOLLO_APPID"
+	ApolloCluster = "APOLLO_CLUSTER"
+	ApolloSecret  = "APOLLO_ACCESS_KEY_SECRET"
+)
+
+func Init(envMap map[string]string) {
+	appName := envMap[AppName]
+	if len(appName) == 0 {
+		if appName = os.Getenv(AppName); len(appName) > 0 {
+			_envMap[AppName] = appName
+		} else {
+			panic("invalid APP_NAME")
+		}
+	}
 	_envMap = make(map[string]string)
 	for k, v := range envMap {
 		if value := os.Getenv(k); len(value) > 0 {
 			_envMap[k] = value
 			continue
 		}
-		if value := os.Getenv(k + "_" + strings.ToUpper(strings.ReplaceAll(appName,"-","_"))); len(value) > 0 {
+		if value := os.Getenv(k + "_" + strings.ToUpper(strings.ReplaceAll(appName, "-", "_"))); len(value) > 0 {
 			_envMap[k] = value
 			continue
 		}
@@ -27,6 +46,31 @@ func GetEnv(envName string) string {
 		return v
 	}
 	return ""
+}
+
+func GetApolloCluster(namespace string) string {
+	switch _envMap[AppEnv] {
+	case _local:
+		return namespace + ".local"
+	case _test:
+	case _dev:
+	case _prod:
+	}
+	return namespace
+}
+
+func GetApolloSecret() string {
+	secret := os.Getenv(ApolloSecret)
+	switch _envMap[AppEnv] {
+	case _local:
+		if value := os.Getenv(ApolloSecret + "_" + strings.ToUpper(strings.ReplaceAll(_envMap[AppName], "-", "_"))); len(value) > 0 {
+			return value
+		}
+	case _test:
+	case _dev:
+	case _prod:
+	}
+	return secret
 }
 
 // 系统模式
