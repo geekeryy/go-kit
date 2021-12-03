@@ -14,11 +14,15 @@ const (
 	TraceName     = "TRACE_NAME"
 	ApolloUrl     = "APOLLO_URL"
 	ApolloAppID   = "APOLLO_APPID"
-	ApolloCluster = "APOLLO_CLUSTER"
 	ApolloSecret  = "APOLLO_ACCESS_KEY_SECRET"
 )
 
 func Init(envMap map[string]string) {
+	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
+		_envMap[appEnv] = appEnv
+	} else {
+		panic("invalid APP_NAME")
+	}
 	appName := envMap[AppName]
 	if len(appName) == 0 {
 		if appName = os.Getenv(AppName); len(appName) > 0 {
