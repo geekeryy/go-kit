@@ -5,7 +5,15 @@ import (
 	"strings"
 )
 
-var _envMap = make(map[string]string)
+var _envMap = map[string]string{
+	AppEnv:     _local,
+	AppName:    "my-app",
+	AppVersion: "v1.0.0",
+	TraceName:  "trace_id",
+	GrpcPort:   "8081",
+	HttpPort:   "8080",
+	PprofPort:  "6060",
+}
 
 const (
 	AppEnv       = "APP_ENV"
@@ -15,22 +23,26 @@ const (
 	ApolloUrl    = "APOLLO_URL"
 	ApolloAppID  = "APOLLO_APPID"
 	ApolloSecret = "APOLLO_ACCESS_KEY_SECRET"
+
+	GrpcPort  = "GRPC_PORT"
+	HttpPort  = "HTTP_PORT"
+	PprofPort = "PPROF_PORT"
 )
 
+// Init 初始化环境配置 ENV > userConf > default
 func Init(userConf map[string]string) {
 	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
 		_envMap[AppEnv] = appEnv
-	} else {
-		_envMap[AppEnv] = _local
 	}
 	appName := userConf[AppName]
-	if len(appName) == 0 {
+	if len(appName) > 0 {
+		_envMap[AppName] = appName
+	} else {
 		if appName = os.Getenv(AppName); len(appName) > 0 {
 			_envMap[AppName] = appName
-		} else {
-			_envMap[AppName] = "my-app"
 		}
 	}
+
 	for k, v := range userConf {
 		if value := os.Getenv(k); len(value) > 0 {
 			_envMap[k] = value
@@ -102,6 +114,22 @@ const (
 // IsDebug 是否为debug模式
 func IsDebug(v string) bool {
 	return v == _modeDebug
+}
+
+func IsLocal() bool {
+	return _local == _envMap[AppEnv]
+}
+
+func IsDev() bool {
+	return _dev == _envMap[AppEnv]
+}
+
+func IsTest() bool {
+	return _test == _envMap[AppEnv]
+}
+
+func IsProd() bool {
+	return _prod == _envMap[AppEnv]
 }
 
 // 系统环境枚举
