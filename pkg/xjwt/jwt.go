@@ -2,17 +2,17 @@ package xjwt
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
-	jwtgo "github.com/dgrijalva/jwt-go/v4"
-	"github.com/pkg/errors"
+	"github.com/dgrijalva/jwt-go/v4"
 )
 
 const DefaultExpireDuration = time.Hour * 24 * 30
 
 var (
-	ErrTokenInvalid     = errors.New("Couldn't handle this token")
-	signKey             = []byte("PCvWzZnAwIvvtjNI")
+	ErrTokenInvalid = errors.New("couldn't handle this token")
+	signKey         = []byte("PCvWzZnAwIvvtjNI")
 )
 
 type Business struct {
@@ -22,7 +22,7 @@ type Business struct {
 
 type CustomClaims struct {
 	Business string
-	jwtgo.StandardClaims
+	jwt.StandardClaims
 }
 
 type TokenResp struct {
@@ -36,17 +36,20 @@ func Init(key string) {
 
 // CreateToken 创建Token
 func CreateToken(bus string, expires time.Duration) (string, error) {
-	expiresAt := time.Now().Add(DefaultExpireDuration)
+	var expiresAt time.Time
 	if expires != 0 {
 		expiresAt = time.Now().Add(expires)
+	} else {
+		expiresAt = time.Now().Add(DefaultExpireDuration)
 	}
 	claims := &CustomClaims{
 		Business: bus,
-		StandardClaims: jwtgo.StandardClaims{
-			ExpiresAt: &jwtgo.Time{Time: expiresAt},
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: &jwt.Time{Time: expiresAt},
+			IssuedAt:  &jwt.Time{Time: time.Now()},
 		},
 	}
-	token := jwtgo.NewWithClaims(jwtgo.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString(signKey)
 	if err != nil {
 		return "", err
@@ -57,7 +60,7 @@ func CreateToken(bus string, expires time.Duration) (string, error) {
 // ParseToken 解析Token
 func ParseToken(tokenString string, v interface{}) error {
 	customClaims := CustomClaims{}
-	token, err := jwtgo.ParseWithClaims(tokenString, &customClaims, func(token *jwtgo.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &customClaims, func(token *jwt.Token) (interface{}, error) {
 		return signKey, nil
 	})
 	if err != nil {
@@ -65,6 +68,9 @@ func ParseToken(tokenString string, v interface{}) error {
 	}
 	if token == nil || !token.Valid {
 		return ErrTokenInvalid
+	}
+	if err := token.Claims.Valid(nil); err != nil {
+		return err
 	}
 
 	if err := json.Unmarshal([]byte(customClaims.Business), v); err != nil {

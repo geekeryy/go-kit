@@ -14,7 +14,8 @@
 
 ### TODO
 
-- [ ] 支持config.Get("yaml")
+- [ ] kafka将消费者均匀分配在所有pod上
+- [ ] kafka分区动态更新
 
 ### 使用
 ```shell

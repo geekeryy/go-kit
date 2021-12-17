@@ -14,6 +14,10 @@ import (
 	"github.com/thedevsaddam/gojsonq/v2"
 )
 
+var (
+	_ IConfig = (*config)(nil)
+)
+
 // IConfig 配置接口
 // 功能如下：
 // 1.热更新 主动轮训/被动通知
@@ -44,8 +48,8 @@ type Source interface {
 	GetConfig() ([]byte, error)
 }
 
-// Config 配置类
-type Config struct {
+// config 配置类
+type config struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	value         atomic.Value
@@ -73,7 +77,7 @@ func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts 
 	if storeHandler == nil {
 		storeHandler = defaultStoreHandler
 	}
-	_cfg := &Config{
+	_cfg := &config{
 		source:       source,
 		storeHandler: storeHandler,
 		subscriber:   make(map[string]chan struct{}),
@@ -90,27 +94,27 @@ func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts 
 	}
 
 	if err := _cfg.ReLoad(); err != nil {
-		panic("Config:" + err.Error())
+		panic("config:" + err.Error())
 	}
 	return _cfg
 }
 
-func (c *Config) LoadValue() interface{} {
+func (c *config) LoadValue() interface{} {
 	return c.value.Load()
 }
 
-func (c *Config) Subscribe(key string, ch chan struct{}) {
+func (c *config) Subscribe(key string, ch chan struct{}) {
 	c.subscriber[key] = ch
 }
 
-func (c *Config) UnSubscribe(key string) {
+func (c *config) UnSubscribe(key string) {
 	delete(c.subscriber, key)
 }
 
 // 发布订阅消息
-func (c *Config) publish() {
+func (c *config) publish() {
 	for k, ch := range c.subscriber {
-		after := time.After(time.Second * 1)
+		after := time.After(time.Second * 5)
 		select {
 		case ch <- struct{}{}:
 		case <-after:
@@ -119,7 +123,7 @@ func (c *Config) publish() {
 	}
 }
 
-func (c *Config) ReLoad() error {
+func (c *config) ReLoad() error {
 	marshal, err := c.source.GetConfig()
 	if err != nil {
 		return err
@@ -149,8 +153,8 @@ func (c *Config) ReLoad() error {
 }
 
 // watch 创建资源监听 处理资源变化 主动轮训
-func (c *Config) watch() {
-	xsync.NewGroup(xsync.WithUUID("Config Watch"), xsync.WithContext(c.ctx)).Go(func(ctx context.Context) error {
+func (c *config) watch() {
+	xsync.NewGroup(xsync.WithUUID("config Watch"), xsync.WithContext(c.ctx)).Go(func(ctx context.Context) error {
 		ticker := time.NewTicker(c.watchInterval)
 		for {
 			select {
@@ -165,7 +169,7 @@ func (c *Config) watch() {
 	})
 }
 
-func (c *Config) GetString(key string) string {
+func (c *config) GetString(key string) string {
 	cfg, err := json.Marshal(c.value.Load())
 	if err != nil {
 		return ""
@@ -174,6 +178,6 @@ func (c *Config) GetString(key string) string {
 	return fmt.Sprint(value)
 }
 
-func (c *Config) Close() {
+func (c *config) Close() {
 	c.cancel()
 }

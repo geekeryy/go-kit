@@ -12,7 +12,7 @@ import (
 	"github.com/comeonjy/go-kit/pkg/xsync"
 )
 
-func TestHttpClient_Get(t *testing.T) {
+func BenchmarkName(b *testing.B) {
 	c := xhttp.NewHttp()
 	g := xsync.NewGroup()
 	log.Println("start")
@@ -21,18 +21,18 @@ func TestHttpClient_Get(t *testing.T) {
 			for i := 0; i < 1000; i++ {
 				statusCode, _, err := c.Get("http://localhost:8080/v1/ping")
 				if err != nil {
-					t.Error(err)
+					b.Error(err)
 				}
 				if statusCode != http.StatusOK {
-					t.Error(statusCode)
+					b.Error(statusCode)
 				}
 			}
 			return nil
 		})
 	}
 	g.Wait()
-
 }
+
 func Get(urlStr string) (int, []byte, error) {
 	body := bytes.NewBuffer([]byte{})
 	req, err := http.NewRequest(http.MethodGet, urlStr, body)

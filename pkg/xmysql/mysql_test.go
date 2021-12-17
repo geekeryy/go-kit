@@ -8,6 +8,7 @@ import (
 
 	"github.com/comeonjy/go-kit/pkg/xconfig"
 	"github.com/comeonjy/go-kit/pkg/xconfig/apollo"
+	"github.com/comeonjy/go-kit/pkg/xenv"
 	"github.com/comeonjy/go-kit/pkg/xlog"
 	"github.com/comeonjy/go-kit/pkg/xmysql"
 	"google.golang.org/grpc/metadata"
@@ -23,10 +24,9 @@ type UserModel struct {
 }
 
 func TestNew(t *testing.T) {
-	c := xconfig.New(
-		xconfig.WithSource(apollo.NewSource("http://apollo.dev.jiangyang.me", "go-kit", "default", "application", os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT"))),
-	)
-	confStr := c.Get("mysql_conf")
+	c := xconfig.New(context.TODO(), apollo.NewSource("http://apollo.dev.jiangyang.me", "go-kit", "default", os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT"), xenv.GetApolloNamespace("common"), xenv.GetApolloNamespace("grpc")), nil)
+
+	confStr := c.GetString("mysql_conf")
 	logger := xlog.New(xlog.WithTrace("name"))
 	conn := xmysql.New(confStr, logger)
 	db, err := conn.DB()

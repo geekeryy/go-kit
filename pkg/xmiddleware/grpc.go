@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/comeonjy/go-kit/pkg/xerror"
 	"github.com/comeonjy/go-kit/pkg/xlog"
 )
 
@@ -54,7 +53,7 @@ func GrpcRecover(logger *xlog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error(ctx, "method:%s, time:%s, err:%v, fatal%s", info.FullMethod, time.Now().Format("2006-01-02 15:04:05:06"), r, string(debug.Stack()))
+				logger.Error(ctx, "method:", info.FullMethod, ", time:", time.Now().Format("2006-01-02 15:04:05:06"), ", err:", time.Now().Format("2006-01-02 15:04:05:06"), ", fatal%s", string(debug.Stack()))
 				err = status.Error(codes.Internal, "内部错误")
 			}
 		}()
@@ -110,7 +109,7 @@ func GrpcLogger(traceName string, logger *xlog.Logger) grpc.UnaryServerIntercept
 		resp, err = handler(ctx, req)
 		if err != nil {
 			s := status.Convert(err)
-			logger.Error(ctx, s.Code(), s.Message(), xerror.DetailsToString(s))
+			logger.Error(ctx, s.Code(), s.Message(), s.Details())
 		}
 		return resp, err
 	}

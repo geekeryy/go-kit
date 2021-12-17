@@ -12,6 +12,7 @@ import (
 	"github.com/comeonjy/go-kit/pkg/xconfig"
 	"github.com/comeonjy/go-kit/pkg/xconfig/apollo"
 	"github.com/comeonjy/go-kit/pkg/xconfig/file"
+	"github.com/comeonjy/go-kit/pkg/xenv"
 )
 
 type Conf struct {
@@ -31,8 +32,6 @@ var (
 	_secret      = os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT")
 )
 
-
-
 func storeHandler(data []byte) interface{} {
 	config := Conf{}
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -45,7 +44,7 @@ func storeHandler(data []byte) interface{} {
 func TestConfig_Get(t *testing.T) {
 	t.Run("apollo", func(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		c := xconfig.New(ctx, apollo.NewSource(_url, _appId, _clusterName, _secret, "dev.grpc"),storeHandler, xconfig.WithWatch(2*time.Second))
+		c := xconfig.New(ctx, apollo.NewSource(xenv.GetEnv(xenv.ApolloUrl), _appId, _clusterName, _secret, "dev.grpc"), storeHandler, xconfig.WithWatch(2*time.Second))
 
 		go func() {
 			for {
@@ -56,11 +55,11 @@ func TestConfig_Get(t *testing.T) {
 			}
 		}()
 		<-ctx.Done()
-		time.Sleep(time.Second*15)
+		time.Sleep(time.Second)
 	})
 	t.Run("yaml", func(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		c := xconfig.New(ctx, file.NewSource("config.yaml"),storeHandler, xconfig.WithWatch(1*time.Second))
+		c := xconfig.New(ctx, file.NewSource("config.yaml"), storeHandler, xconfig.WithWatch(1*time.Second))
 
 		go func() {
 			for {
@@ -69,7 +68,8 @@ func TestConfig_Get(t *testing.T) {
 				time.Sleep(time.Second * 3)
 			}
 		}()
-		time.Sleep(time.Hour)
+		<-ctx.Done()
+		time.Sleep(time.Second)
 	})
 
 }

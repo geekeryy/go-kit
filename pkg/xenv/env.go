@@ -13,6 +13,7 @@ var _envMap = map[string]string{
 	GrpcPort:   "8081",
 	HttpPort:   "8080",
 	PprofPort:  "6060",
+	ApolloUrl:  "http://apollo-service-dev-apollo-configservice.dev:8080",
 }
 
 const (
@@ -29,11 +30,14 @@ const (
 	PprofPort = "PPROF_PORT"
 )
 
-// Init 初始化环境配置 ENV > userConf > default
-func Init(userConf map[string]string) {
+func init() {
 	if appEnv := os.Getenv(AppEnv); len(appEnv) > 0 {
 		_envMap[AppEnv] = appEnv
 	}
+}
+
+// Init 初始化环境配置 ENV > userConf > default
+func Init(userConf map[string]string) {
 	appName := userConf[AppName]
 	if len(appName) > 0 {
 		_envMap[AppName] = appName
@@ -93,14 +97,10 @@ func GetApolloNamespace(namespace string) string {
 
 func GetApolloSecret() string {
 	secret := os.Getenv(ApolloSecret)
-	switch _envMap[AppEnv] {
-	case _local:
+	if len(secret) == 0 {
 		if value := os.Getenv(ApolloSecret + "_" + strings.ToUpper(strings.ReplaceAll(_envMap[AppName], "-", "_"))); len(value) > 0 {
 			return value
 		}
-	case _test:
-	case _dev:
-	case _prod:
 	}
 	return secret
 }
@@ -116,18 +116,16 @@ func IsDebug(v string) bool {
 	return v == _modeDebug
 }
 
+// IsLocal 判断当前环境（环境主要用户切换配置，不可过度依赖）
 func IsLocal() bool {
 	return _local == _envMap[AppEnv]
 }
-
 func IsDev() bool {
 	return _dev == _envMap[AppEnv]
 }
-
 func IsTest() bool {
 	return _test == _envMap[AppEnv]
 }
-
 func IsProd() bool {
 	return _prod == _envMap[AppEnv]
 }

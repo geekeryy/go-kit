@@ -4,11 +4,11 @@ import (
 	"time"
 )
 
-type Option func(*Config)
+type Option func(*config)
 
 // WithWatch 监控 推荐30秒
 func WithWatch(interval time.Duration) Option {
-	return func(c *Config) {
+	return func(c *config) {
 		c.watchInterval = interval
 	}
 }
