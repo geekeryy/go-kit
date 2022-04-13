@@ -41,6 +41,19 @@ func storeHandler(data []byte) interface{} {
 	return config
 }
 
+func TestDemo(t *testing.T) {
+	c := Conf{}
+	f1(&c)
+	log.Println(c)
+}
+func f1(c any) {
+	err := json.Unmarshal([]byte(`{"mode":"debug"}`), &c)
+	if err != nil {
+		log.Println(err)
+	}
+	log.Println(c)
+}
+
 func TestConfig_Get(t *testing.T) {
 	t.Run("apollo", func(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)

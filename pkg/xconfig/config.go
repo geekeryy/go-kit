@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -25,9 +26,11 @@ var (
 // 3.订阅配置变化
 type IConfig interface {
 	// ReLoad 加载配置 被动通知
+	// 从配置源加载到内存
 	ReLoad() error
 
 	// LoadValue 获取Value
+	// 从内存中读取配置数据
 	LoadValue() interface{}
 
 	// GetString 支持json/yaml通过键名获取值 不支持数组
@@ -55,7 +58,7 @@ type config struct {
 	value         atomic.Value
 	source        Source
 	storeHandler  StoreHandlerFun
-	subscriber    map[string]chan struct{}
+	subscriber    sync.Map
 	watchInterval time.Duration
 }
 type StoreHandlerFun func(data []byte) interface{}
@@ -80,7 +83,6 @@ func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts 
 	_cfg := &config{
 		source:       source,
 		storeHandler: storeHandler,
-		subscriber:   make(map[string]chan struct{}),
 	}
 
 	_cfg.ctx, _cfg.cancel = context.WithCancel(ctx)
@@ -104,23 +106,30 @@ func (c *config) LoadValue() interface{} {
 }
 
 func (c *config) Subscribe(key string, ch chan struct{}) {
-	c.subscriber[key] = ch
+	c.subscriber.Store(key, ch)
 }
 
 func (c *config) UnSubscribe(key string) {
-	delete(c.subscriber, key)
+	c.subscriber.Delete(key)
 }
 
 // 发布订阅消息
 func (c *config) publish() {
-	for k, ch := range c.subscriber {
-		after := time.After(time.Second * 5)
-		select {
-		case ch <- struct{}{}:
-		case <-after:
-			log.Println("超时放弃", k)
-		}
-	}
+	c.subscriber.Range(func(key, value any) bool {
+		go func(key, value any) {
+			ch, ok := value.(chan struct{})
+			if !ok {
+				return
+			}
+			after := time.After(time.Second * 5)
+			select {
+			case ch <- struct{}{}:
+			case <-after:
+				log.Println("超时放弃", key)
+			}
+		}(key, value)
+		return true
+	})
 }
 
 func (c *config) ReLoad() error {
@@ -143,9 +152,7 @@ func (c *config) ReLoad() error {
 	if !reflect.DeepEqual(c.value.Load(), value) {
 		log.Println("配置更新", string(marshal))
 		c.value.Store(c.storeHandler(marshal))
-		if len(c.subscriber) > 0 {
-			go c.publish()
-		}
+		c.publish()
 		return nil
 	}
 
