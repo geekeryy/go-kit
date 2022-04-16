@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package base2;
+
+option go_package = "github.com/comeonjy/go-kit/example/protobuf/base;base1";
+import "google/protobuf/timestamp.proto";
+message Empty{
+  map<string, string> mp = 1;
+  google.protobuf.Timestamp time = 2;
+}
+
+enum Status {
+  Unkonw = 0;
+  Online = 1;
+  Offline = 2;
+}

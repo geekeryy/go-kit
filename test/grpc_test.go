@@ -42,12 +42,12 @@ func BenchmarkMath(b *testing.B) {
 }
 
 func TestDemo(t *testing.T) {
-	data := struct {
-		Age int
-	}{
-		1,
-	}
-	m(data)
+	a := make([]string, 0)
+	b := new([]string)
+	var c []string
+	log.Println(a == nil, *b == nil, c == nil, len(a), len(*b)) // false true true
+	log.Printf("%+v %+v %+v \n", a, *b, c)                      // [] [] []
+	log.Printf("%p %p %p \n", &a, b, &c)
 }
 
 func m(data interface{}) {

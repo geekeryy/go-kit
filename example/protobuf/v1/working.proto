@@ -1,0 +1,9 @@
+syntax="proto3";
+
+package v1;
+option go_package=".;v2";
+import "base/base.proto";
+
+service Working {
+  rpc Ping(base2.Empty) returns (base2.Empty){};
+}

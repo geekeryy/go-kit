@@ -1,5 +1,10 @@
 package xerror
 
+type code interface {
+	String() string
+	GetCode() uint32
+}
+
 type Code uint32
 
 const (
@@ -16,6 +21,8 @@ const (
 	YunPianErr                       // 云片网错误
 	EmailErr                         // 邮件发送失败
 	Invalid                          // 非法请求
+	Unknown                          // 未知错误
+
 )
 
 func (i Code) GetCode() uint32 {
