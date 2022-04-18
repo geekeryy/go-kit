@@ -16,8 +16,9 @@ var (
 )
 
 type Business struct {
-	UUID string `json:"uuid"`
-	Role uint64 `json:"role"`
+	UUID   string `json:"uuid"`
+	Role   uint64 `json:"role"`
+	Extend string `json:"extend"`
 }
 
 type CustomClaims struct {
@@ -37,7 +38,7 @@ func Init(key string) {
 // CreateToken 创建Token
 func CreateToken(bus string, expires time.Duration) (string, error) {
 	var expiresAt time.Time
-	if expires != 0 {
+	if expires > time.Second {
 		expiresAt = time.Now().Add(expires)
 	} else {
 		expiresAt = time.Now().Add(DefaultExpireDuration)
@@ -58,7 +59,7 @@ func CreateToken(bus string, expires time.Duration) (string, error) {
 }
 
 // ParseToken 解析Token
-func ParseToken(tokenString string, v interface{}) error {
+func ParseToken(tokenString string, bus interface{}) error {
 	customClaims := CustomClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, &customClaims, func(token *jwt.Token) (interface{}, error) {
 		return signKey, nil
@@ -73,7 +74,7 @@ func ParseToken(tokenString string, v interface{}) error {
 		return err
 	}
 
-	if err := json.Unmarshal([]byte(customClaims.Business), v); err != nil {
+	if err := json.Unmarshal([]byte(customClaims.Business), bus); err != nil {
 		return err
 	}
 	return nil
