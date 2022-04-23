@@ -3,8 +3,9 @@ package xsync
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
+
+	"github.com/comeonjy/go-kit/pkg/xlog"
 )
 
 type Group struct {
@@ -12,7 +13,8 @@ type Group struct {
 	wait       sync.WaitGroup
 	cxt        context.Context
 	ch         chan struct{}
-	errHandler func(ctx context.Context)
+	errHandler func(ctx context.Context, err error)
+	logger     *xlog.Logger
 }
 
 type Option func(group *Group)
@@ -25,9 +27,15 @@ func WithContext(ctx context.Context) Option {
 }
 
 // WithErrHandler 错误处理
-func WithErrHandler(handler func(context.Context)) Option {
+func WithErrHandler(handler func(context.Context, error)) Option {
 	return func(group *Group) {
 		group.errHandler = handler
+	}
+}
+
+func WithLogger(logger *xlog.Logger) Option {
+	return func(group *Group) {
+		group.logger = logger
 	}
 }
 
@@ -81,6 +89,9 @@ func (g *Group) Go(f func(context.Context) error) {
 	if g.cxt == nil {
 		g.cxt = context.Background()
 	}
+	if g.logger == nil {
+		g.logger = xlog.New()
+	}
 	g.add()
 	select {
 	case <-g.cxt.Done():
@@ -90,9 +101,9 @@ func (g *Group) Go(f func(context.Context) error) {
 			defer g.done()
 			if err := g.do(f); err != nil {
 				if g.errHandler != nil {
-					g.errHandler(g.cxt)
+					g.errHandler(g.cxt, err)
 				} else {
-					log.Printf("Go err: %s %+v", g.uuid, err)
+					g.logger.Infof(g.cxt, "Go err: %s %+v", g.uuid, err)
 				}
 			}
 		}()

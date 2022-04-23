@@ -45,6 +45,21 @@ func HttpLogger(traceName string, logger *xlog.Logger) func(next http.Handler) h
 	}
 }
 
+func HttpCORS() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "OPTIONS" {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "*")
+				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.Header().Set("Access-Control-Max-Age", "86400")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 type MiddlewareFunc func(http.Handler) http.Handler
 
 func HttpUse(h http.Handler, opt ...MiddlewareFunc) http.Handler {

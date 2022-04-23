@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/comeonjy/go-kit/pkg/xlog"
 	"github.com/comeonjy/go-kit/pkg/xsync"
 	"github.com/pkg/errors"
 	"github.com/thedevsaddam/gojsonq/v2"
@@ -21,17 +22,16 @@ var (
 
 // IConfig 配置接口
 // 功能如下：
-// 1.热更新 主动轮训/被动通知
+// 1.热更新 主动轮询/被动通知
 // 2.通过key获取配置
 // 3.订阅配置变化
 type IConfig interface {
-	// ReLoad 加载配置 被动通知
+	// ReloadConfig 加载配置 被动通知
 	// 从配置源加载到内存
-	ReLoad() error
+	ReloadConfig() error
 
-	// LoadValue 获取Value
-	// 从内存中读取配置数据
-	LoadValue() interface{}
+	// Scan 将配置扫描到结构体
+	Scan(v any)
 
 	// GetString 支持json/yaml通过键名获取值 不支持数组
 	GetString(key string) string
@@ -57,32 +57,21 @@ type config struct {
 	cancel        context.CancelFunc
 	value         atomic.Value
 	source        Source
-	storeHandler  StoreHandlerFun
 	subscriber    sync.Map
 	watchInterval time.Duration
-}
-type StoreHandlerFun func(data []byte) interface{}
-
-func defaultStoreHandler(data []byte) interface{} {
-	m := make(map[string]interface{})
-	if err := json.Unmarshal(data, &m); err != nil {
-		return nil
-	}
-	return m
+	log           *xlog.Logger
 }
 
 // New 创建配置类
 // storeHandler 描述资源以何种形式存储到Config.value 返回需要存储的值
-func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts ...Option) IConfig {
+func New(ctx context.Context, source Source, opts ...Option) IConfig {
 	if source == nil {
 		panic(errors.New("invalid source"))
 	}
-	if storeHandler == nil {
-		storeHandler = defaultStoreHandler
-	}
 	_cfg := &config{
-		source:       source,
-		storeHandler: storeHandler,
+		source:     source,
+		log:        xlog.New(),
+		subscriber: sync.Map{},
 	}
 
 	_cfg.ctx, _cfg.cancel = context.WithCancel(ctx)
@@ -95,14 +84,10 @@ func New(ctx context.Context, source Source, storeHandler StoreHandlerFun, opts 
 		_cfg.watch()
 	}
 
-	if err := _cfg.ReLoad(); err != nil {
+	if err := _cfg.ReloadConfig(); err != nil {
 		panic("config:" + err.Error())
 	}
 	return _cfg
-}
-
-func (c *config) LoadValue() interface{} {
-	return c.value.Load()
 }
 
 func (c *config) Subscribe(key string, ch chan struct{}) {
@@ -132,26 +117,21 @@ func (c *config) publish() {
 	})
 }
 
-func (c *config) ReLoad() error {
+func (c *config) ReloadConfig() error {
 	marshal, err := c.source.GetConfig()
 	if err != nil {
 		return err
 	}
-	if marshal == nil {
+	if marshal == nil && len(marshal) == 0 {
 		return nil
 	}
-
-	value := c.storeHandler(marshal)
-	if value == nil {
+	if c.value.CompareAndSwap(nil, marshal) {
+		c.log.Info(c.ctx, "配置加载", string(marshal))
 		return nil
 	}
-	if c.value.Load() == nil {
-		c.value.Store(value)
-		return nil
-	}
-	if !reflect.DeepEqual(c.value.Load(), value) {
-		log.Println("配置更新", string(marshal))
-		c.value.Store(c.storeHandler(marshal))
+	if !reflect.DeepEqual(c.value.Load(), marshal) {
+		c.log.Info(c.ctx, "配置更新", string(marshal))
+		c.value.Store(marshal)
 		c.publish()
 		return nil
 	}
@@ -168,7 +148,7 @@ func (c *config) watch() {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-ticker.C:
-				if err := c.ReLoad(); err != nil {
+				if err := c.ReloadConfig(); err != nil {
 					log.Println(err)
 				}
 			}
@@ -177,12 +157,19 @@ func (c *config) watch() {
 }
 
 func (c *config) GetString(key string) string {
-	cfg, err := json.Marshal(c.value.Load())
-	if err != nil {
+	cfg, ok := c.value.Load().([]byte)
+	if !ok {
 		return ""
 	}
 	value := gojsonq.New().FromString(string(cfg)).Find(key)
 	return fmt.Sprint(value)
+}
+
+// Scan 扫描配置到结构体
+// 写入value时做了严格限制，只要初始化没有报错，就不会报错
+func (c *config) Scan(v any) {
+	value, _ := c.value.Load().([]byte)
+	_ = json.Unmarshal(value, v)
 }
 
 func (c *config) Close() {

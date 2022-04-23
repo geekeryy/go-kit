@@ -1,5 +1,5 @@
 mode: debug121
-port: 80801
+port: 8080
 app:
   name: go-layout
   port:

@@ -53,6 +53,14 @@ func (l *Logger) Info(ctx context.Context, v ...interface{}) {
 	l.Println(traceID, "INFO", v...)
 }
 
+func (l *Logger) Infof(ctx context.Context, fmtStr string, v ...interface{}) {
+	var traceID string
+	if len(l.traceName) > 0 {
+		traceID = l.getTraceID(ctx)
+	}
+	l.printf(traceID, "INFO", fmtStr, v...)
+}
+
 func (l *Logger) Debug(ctx context.Context, v ...interface{}) {
 	if !l.debug {
 		return
@@ -84,6 +92,9 @@ func (l *Logger) Error(ctx context.Context, v ...interface{}) {
 
 func (l *Logger) Println(traceID string, types string, v ...interface{}) {
 	log.Println(traceID, types, v)
+}
+func (l *Logger) printf(traceID string, types string, fmtStr string, v ...interface{}) {
+	log.Println(traceID, types, fmt.Sprintf(fmtStr, v...))
 }
 
 // Printf 实现 xmysql.Writer

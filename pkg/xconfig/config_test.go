@@ -2,9 +2,7 @@ package xconfig_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -32,38 +30,18 @@ var (
 	_secret      = os.Getenv("APOLLO_ACCESS_KEY_SECRET_GO_KIT")
 )
 
-func storeHandler(data []byte) interface{} {
-	config := Conf{}
-	if err := json.Unmarshal(data, &config); err != nil {
-		log.Println(err)
-		return nil
-	}
-	return config
-}
-
-func TestDemo(t *testing.T) {
-	c := Conf{}
-	f1(&c)
-	log.Println(c)
-}
-func f1(c any) {
-	err := json.Unmarshal([]byte(`{"mode":"debug"}`), &c)
-	if err != nil {
-		log.Println(err)
-	}
-	log.Println(c)
-}
-
 func TestConfig_Get(t *testing.T) {
 	t.Run("apollo", func(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		c := xconfig.New(ctx, apollo.NewSource(xenv.GetEnv(xenv.ApolloUrl), _appId, _clusterName, _secret, "dev.grpc"), storeHandler, xconfig.WithWatch(2*time.Second))
+		c := xconfig.New(ctx, apollo.NewSource(xenv.GetEnv(xenv.ApolloUrl), _appId, _clusterName, _secret, "dev.grpc"), xconfig.WithWatch(2*time.Second))
 
 		go func() {
 			for {
+				cfg := Conf{}
+				c.Scan(&cfg)
+				fmt.Println(cfg)
 				fmt.Println(c.GetString("mode"))
 				fmt.Println(c.GetString("account_grpc"))
-				fmt.Println(c.LoadValue().(Conf))
 				time.Sleep(time.Second * 3)
 			}
 		}()
@@ -72,10 +50,13 @@ func TestConfig_Get(t *testing.T) {
 	})
 	t.Run("yaml", func(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		c := xconfig.New(ctx, file.NewSource("config.yaml"), storeHandler, xconfig.WithWatch(1*time.Second))
+		c := xconfig.New(ctx, file.NewSource("config.yaml"), xconfig.WithWatch(1*time.Second))
 
 		go func() {
 			for {
+				cfg := Conf{}
+				c.Scan(&cfg)
+				fmt.Println(cfg)
 				fmt.Println(c.GetString("mode"))
 				fmt.Println(c.GetString("port"))
 				time.Sleep(time.Second * 3)
