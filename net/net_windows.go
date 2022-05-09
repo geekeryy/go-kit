@@ -13,6 +13,8 @@ import (
 	"syscall"
 )
 
+const SO_EXCLUSIVEADDRUSE = ^syscall.SO_REUSEADDR
+
 // Listen 包装net.Listen
 func Listen(network string, address string) (net.Listener, error) {
 	config := net.ListenConfig{
@@ -26,7 +28,7 @@ func Listen(network string, address string) (net.Listener, error) {
 func ExclusiveAddrUseControl(network, address string, c syscall.RawConn) error {
 	return c.Control(func(fd uintptr) {
 		// windows下编译才能通过
-		err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, ^syscall.SO_REUSEADDR, 1)
+		err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, SO_EXCLUSIVEADDRUSE, 1)
 		if err != nil {
 			panic(err)
 		}
