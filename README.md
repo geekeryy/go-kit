@@ -23,6 +23,7 @@
 - [ ] Elastic APM 链路追踪 https://www.modb.pro/db/211621
 - [ ] grpc客户端拦截器、服务端拦截器、resolver
 - [ ] app灵活注册server
+- [ ] 增加CICD
 
 ### 约定
 1. 环境变量存储保密信息、配置文件存储常规配置
