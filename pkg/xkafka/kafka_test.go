@@ -21,6 +21,15 @@ func TestNew(t *testing.T) {
 	defer cli.Close()
 	topic := "Test1"
 	topics := "Test1,Test2"
+
+	t.Run("demo", func(t *testing.T) {
+		strings, err := cli.Client.Topics()
+		if err != nil {
+			return
+		}
+		log.Println(strings)
+	})
+
 	t.Run("producer", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			if err := cli.SendSyncMessage(&sarama.ProducerMessage{
@@ -44,6 +53,7 @@ func TestNew(t *testing.T) {
 		//}
 	})
 	t.Run("Consumes", func(t *testing.T) {
+		// 两个消费者，消费两遍
 		if err := cli.Consumes(topic, nil); err != nil {
 			t.Error(err)
 			return
