@@ -45,6 +45,10 @@ func Error(ctx context.Context, v ...interface{}) {
 	_logger.Error(ctx, v...)
 }
 
+func Trace(ctx context.Context, v ...interface{}) {
+	_logger.Info(ctx, v...)
+}
+
 func (l *Logger) Info(ctx context.Context, v ...interface{}) {
 	var traceID string
 	if len(l.traceName) > 0 {
