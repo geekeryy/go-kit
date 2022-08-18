@@ -10,9 +10,7 @@ import (
 
 // 事件ID
 const (
-	LicenseEffectiveEvent = iota + 1 // License生效事件
-	LicenseExpireEvent               // License过期事件
-	CronEvent                        // 定时任务事件
+	LicenseXXXEvent = iota + 1 // 事件ID
 )
 
 var eventMap = make(map[int]*link)
@@ -133,7 +131,7 @@ func (l *link) do() {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("Event occur panic:%v\n", r)
+					log.Printf("Event %s occur panic:%v\n", l.UUID, r)
 				}
 			}()
 			l.Func()
