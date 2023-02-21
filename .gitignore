@@ -13,6 +13,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+html
 .idea
 .DS_Store
 go.sum
