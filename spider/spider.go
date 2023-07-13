@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,17 +16,16 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/comeonjy/go-kit/pkg/util"
 )
 
 func main() {
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute*100)
 
 	s := &Spider{
-		index:    "https://www.aliyun.com/",
-		maxLevel: 2,
-		savePath: "./html/",
-		ctx:      ctx,
+		Index:    "http://172.18.80.91:8079/",
+		MaxLevel: 2,
+		SavePath: "./html/",
+		Ctx:      ctx,
 	}
 
 	if err := s.Run(); err != nil {
@@ -48,6 +49,10 @@ var urlReg = regexp.MustCompile("url\\((.*?)\\)")
 // 匹配css url，取出资源路径
 var urlCssReg = regexp.MustCompile("url\\(\"(.*?)\"\\)")
 
+var appJsReg = regexp.MustCompile("js/app.\\w{8}.js")
+var chunkReg = regexp.MustCompile(`"(chunk-\w{8})":"(\w{8})"`)
+var dataImgReg = regexp.MustCompile("^(\"data:image|data:image)")
+
 type Result struct {
 	Sources []Source
 }
@@ -58,31 +63,41 @@ type Source struct {
 }
 
 type Spider struct {
-	index    string
-	maxLevel int
-	ctx      context.Context
-	savePath string
+	Index    string
+	MaxLevel int
+	Ctx      context.Context
+	SavePath string
 }
 
 func (s *Spider) Run() error {
-	if _, err := os.Stat(s.savePath); os.IsNotExist(err) {
-		if err := os.Mkdir(s.savePath, os.ModePerm); err != nil {
+	if _, err := os.Stat(s.SavePath); os.IsNotExist(err) {
+		if err := os.Mkdir(s.SavePath, os.ModePerm); err != nil {
+			return err
+		}
+	}
+	if _, err := os.Stat(s.SavePath + "js/"); os.IsNotExist(err) {
+		if err := os.MkdirAll(s.SavePath+"js/", os.ModePerm); err != nil {
+			return err
+		}
+	}
+	if _, err := os.Stat(s.SavePath + "css/"); os.IsNotExist(err) {
+		if err := os.MkdirAll(s.SavePath+"css/", os.ModePerm); err != nil {
 			return err
 		}
 	}
 
-	result, err := s.scan(Source{s.index, "index.html", 0})
+	result, err := s.scan(Source{s.Index, "index.html", 0})
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < s.maxLevel; i++ {
+	for i := 0; i < s.MaxLevel; i++ {
 		if result == nil || result.Sources == nil {
 			return nil
 		}
 		temp := make([]Source, 0)
 		for _, v := range result.Sources {
-			if v.level <= int8(s.maxLevel) {
+			if v.level <= int8(s.MaxLevel) {
 				res, err := s.scan(v)
 				if err != nil {
 					log.Println(v, err)
@@ -108,8 +123,8 @@ func (s *Spider) Run() error {
 // 2. 替换所有资源链接
 func (s *Spider) scan(source Source) (*Result, error) {
 	select {
-	case <-s.ctx.Done():
-		return nil, s.ctx.Err()
+	case <-s.Ctx.Done():
+		return nil, s.Ctx.Err()
 	default:
 	}
 
@@ -130,6 +145,7 @@ func (s *Spider) scan(source Source) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	client.CloseIdleConnections()
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%v", resp.StatusCode)
@@ -137,10 +153,11 @@ func (s *Spider) scan(source Source) (*Result, error) {
 
 	// 处理非html
 	if !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-		body, err := io.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
+		resp.Body.Close()
 		// 处理css
 		if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
 			sources := make([]Source, 0)
@@ -160,7 +177,7 @@ func (s *Spider) scan(source Source) (*Result, error) {
 				if len(htmlSubmatch) == 3 {
 					sources = append(sources, Source{
 						url:      newStr,
-						filename: util.Md5(newStr) + suffix,
+						filename: Md5(newStr) + suffix,
 						level:    source.level + 1,
 					})
 				} else if len(relativeSubmatch) == 2 {
@@ -168,16 +185,37 @@ func (s *Spider) scan(source Source) (*Result, error) {
 					if len(doaminSubmatch) == 3 {
 						sources = append(sources, Source{
 							url:      doaminSubmatch[1] + newStr,
-							filename: util.Md5(newStr) + suffix,
+							filename: Md5(newStr) + suffix,
 							level:    source.level + 1,
 						})
 					} else {
 						return s
 					}
 				} else {
-					return s
+					if dataImgReg.MatchString(newStr) {
+						return s
+					}
+					relativeImgReg := regexp.MustCompile("^../")
+					if relativeImgReg.MatchString(newStr) {
+						doaminSubmatch := domainReg.FindStringSubmatch(source.url)
+						if len(doaminSubmatch) == 3 {
+							sources = append(sources, Source{
+								url:      doaminSubmatch[1] + newStr[2:],
+								filename: Md5(newStr) + suffix,
+								level:    source.level + 1,
+							})
+						} else {
+							return s
+						}
+					} else {
+						sources = append(sources, Source{
+							url:      source.url + newStr,
+							filename: Md5(newStr) + suffix,
+							level:    source.level + 1,
+						})
+					}
 				}
-				return []byte("url(\"/" + util.Md5(newStr) + suffix + "\")")
+				return []byte("url(\"/" + Md5(newStr) + suffix + "\")")
 			})
 
 			body = urlReg.ReplaceAllFunc(body, func(s []byte) []byte {
@@ -196,7 +234,7 @@ func (s *Spider) scan(source Source) (*Result, error) {
 				if len(htmlSubmatch) == 3 {
 					sources = append(sources, Source{
 						url:      newStr,
-						filename: util.Md5(newStr) + suffix,
+						filename: Md5(newStr) + suffix,
 						level:    source.level + 1,
 					})
 				} else if len(relativeSubmatch) == 2 {
@@ -204,16 +242,37 @@ func (s *Spider) scan(source Source) (*Result, error) {
 					if len(doaminSubmatch) == 3 {
 						sources = append(sources, Source{
 							url:      doaminSubmatch[1] + newStr,
-							filename: util.Md5(newStr) + suffix,
+							filename: Md5(newStr) + suffix,
 							level:    source.level + 1,
 						})
 					} else {
 						return s
 					}
 				} else {
-					return s
+					if dataImgReg.MatchString(newStr) {
+						return s
+					}
+					relativeImgReg := regexp.MustCompile("^../")
+					if relativeImgReg.MatchString(newStr) {
+						doaminSubmatch := domainReg.FindStringSubmatch(source.url)
+						if len(doaminSubmatch) == 3 {
+							sources = append(sources, Source{
+								url:      doaminSubmatch[1] + newStr[2:],
+								filename: Md5(newStr) + suffix,
+								level:    source.level + 1,
+							})
+						} else {
+							return s
+						}
+					} else {
+						sources = append(sources, Source{
+							url:      source.url + newStr,
+							filename: Md5(newStr) + suffix,
+							level:    source.level + 1,
+						})
+					}
 				}
-				return []byte("url(/" + util.Md5(newStr) + suffix + ")")
+				return []byte("url(/" + Md5(newStr) + suffix + ")")
 			})
 			// 下载css中的图片字体等资源
 			for _, v := range sources {
@@ -223,7 +282,38 @@ func (s *Spider) scan(source Source) (*Result, error) {
 			}
 		}
 
-		return nil, os.WriteFile(s.savePath+source.filename, body, 0666)
+		if strings.Contains(resp.Header.Get("Content-Type"), "application/javascript") {
+			//"chunk-[\w]{8}":"[\w]{8}"
+			//http://vue.com/js/app.f5d1a05f.js
+
+			if appJsReg.MatchString(source.url) {
+				chunkArr := chunkReg.FindAllStringSubmatch(string(body), 1000)
+				doaminSubmatch := domainReg.FindStringSubmatch(source.url)
+				for _, v := range chunkArr {
+					if len(v) == 3 {
+						log.Println(doaminSubmatch[0]+"js/"+v[1]+"."+v[2]+".js", s.SavePath+"js/"+v[1]+"."+v[2]+".js")
+						_, err := s.scan(Source{
+							url:      doaminSubmatch[0] + "js/" + v[1] + "." + v[2] + ".js",
+							filename: "js/" + v[1] + "." + v[2] + ".js",
+							level:    source.level,
+						})
+						if err != nil {
+							log.Println(doaminSubmatch[0]+"js/"+v[1]+"."+v[2]+".js", s.SavePath+"js/"+v[1]+"."+v[2]+".js", doaminSubmatch[0]+"css/"+v[1]+"."+v[2]+".css", s.SavePath+"css/"+v[1]+"."+v[2]+".css")
+							_, err = s.scan(Source{
+								url:      doaminSubmatch[0] + "css/" + v[1] + "." + v[2] + ".css",
+								filename: "css/" + v[1] + "." + v[2] + ".css",
+								level:    source.level,
+							})
+							if err != nil {
+								log.Println(err)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return nil, ioutil.WriteFile(s.SavePath+source.filename, body, 0666)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
@@ -234,7 +324,7 @@ func (s *Spider) scan(source Source) (*Result, error) {
 	res := Result{}
 	urls := make([]Source, 0)
 
-	if source.level < int8(s.maxLevel) {
+	if source.level < int8(s.MaxLevel) {
 		doc.Find("a").Each(func(i int, selection *goquery.Selection) {
 			urls = append(urls, do(source, "href", ".html", selection)...)
 		})
@@ -271,7 +361,7 @@ func (s *Spider) scan(source Source) (*Result, error) {
 		if len(htmlSubmatch) == 3 {
 			urls = append(urls, Source{
 				url:      newStr,
-				filename: util.Md5(newStr) + suffix,
+				filename: Md5(newStr) + suffix,
 				level:    source.level + 1,
 			})
 		} else if len(relativeSubmatch) == 2 {
@@ -279,20 +369,24 @@ func (s *Spider) scan(source Source) (*Result, error) {
 			if len(doaminSubmatch) == 3 {
 				urls = append(urls, Source{
 					url:      doaminSubmatch[1] + newStr,
-					filename: util.Md5(newStr) + suffix,
+					filename: Md5(newStr) + suffix,
 					level:    source.level + 1,
 				})
 			} else {
 				return s
 			}
 		} else {
-			return s
+			urls = append(urls, Source{
+				url:      source.url + newStr,
+				filename: Md5(newStr) + suffix,
+				level:    source.level + 1,
+			})
 		}
-		return "url(/" + util.Md5(newStr) + suffix + ")"
+		return "url(/" + Md5(newStr) + suffix + ")"
 	})
 
 	res.Sources = urls
-	return &res, os.WriteFile(s.savePath+source.filename, []byte(html), 0666)
+	return &res, ioutil.WriteFile(s.SavePath+source.filename, []byte(html), 0666)
 
 }
 
@@ -308,23 +402,35 @@ func do(source Source, attr, suffix string, selection *goquery.Selection) []Sour
 	htmlSubmatch := httpReg.FindStringSubmatch(val)
 	relativeSubmatch := relativePathReg.FindStringSubmatch(val)
 	if len(htmlSubmatch) == 3 {
-		selection.SetAttr(attr, "/"+util.Md5(val)+suffix)
+		selection.SetAttr(attr, "/"+Md5(val)+suffix)
 		urls = append(urls, Source{
 			url:      val,
-			filename: util.Md5(val) + suffix,
+			filename: Md5(val) + suffix,
 			level:    source.level + 1,
 		})
-	}
-	if len(relativeSubmatch) == 2 {
+	} else if len(relativeSubmatch) == 2 {
 		doaminSubmatch := domainReg.FindStringSubmatch(source.url)
 		if len(doaminSubmatch) == 3 {
-			selection.SetAttr(attr, "/"+util.Md5(val)+suffix)
+			selection.SetAttr(attr, "/"+Md5(val)+suffix)
 			urls = append(urls, Source{
 				url:      doaminSubmatch[1] + val,
-				filename: util.Md5(val) + suffix,
+				filename: Md5(val) + suffix,
 				level:    source.level + 1,
 			})
 		}
+	} else {
+		selection.SetAttr(attr, "/"+Md5(val)+suffix)
+		urls = append(urls, Source{
+			url:      source.url + val,
+			filename: Md5(val) + suffix,
+			level:    source.level + 1,
+		})
 	}
 	return urls
+}
+
+func Md5(str string) string {
+	h := md5.New()
+	h.Write([]byte(str))
+	return hex.EncodeToString(h.Sum(nil))
 }
