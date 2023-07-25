@@ -1,56 +1,76 @@
 package test_test
 
 import (
-	"encoding/json"
-	"log"
-	"math/rand"
+	"fmt"
+	"github.com/ghodss/yaml"
+	"os"
 	"testing"
 )
 
-func init() {
-	//rand.Seed(0)
-}
-
-func TestGrpc_ReloadConfig(t *testing.T) {
-	var count int
-	for i := 0; i < 100; i++ {
-		n := rand.Intn(10)
-		log.Println(n)
-		if n == 1 {
-			count++
-		}
-	}
-	log.Println("count:", count)
-}
-
-func BenchmarkMath(b *testing.B) {
-	const n = 60
-	const a = 1 << n
-	const c = a - 1
-
-	b.Run("取模", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = i * 3333333 % a
-		}
-	})
-	b.Run("与", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = i * 3333333 & c
-		}
-	})
-
-}
-
 func TestDemo(t *testing.T) {
-	a := make([]string, 0)
-	b := new([]string)
-	var c []string
-	log.Println(a == nil, *b == nil, c == nil, len(a), len(*b)) // false true true
-	log.Printf("%+v %+v %+v \n", a, *b, c)                      // [] [] []
-	log.Printf("%p %p %p \n", &a, b, &c)
+	file, err := os.ReadFile("conf.yml")
+	if err != nil {
+		t.Error(err)
+	}
+	data := T{}
+	if err := yaml.Unmarshal(file, &data); err != nil {
+		t.Error(err)
+	}
+	for _, v := range data.Rules {
+		fmt.Println(v)
+	}
 }
 
-func m(data interface{}) {
-	marshal, err := json.Marshal(data)
-	log.Println(string(marshal), err)
+type T struct {
+	Global struct {
+		AllowRPC       bool          `json:"AllowRPC"`
+		ApiVersion     string        `json:"ApiVersion"`
+		Date           string        `json:"Date"`
+		DisableRules   []interface{} `json:"DisableRules"`
+		EnableRules    []interface{} `json:"EnableRules"`
+		MaxLogInput    int           `json:"MaxLogInput"`
+		MaxRegexRuleID int           `json:"MaxRegexRuleID"`
+		Mode           string        `json:"Mode"`
+	} `json:"Global"`
+	MaskRules []struct {
+		IgnoreCharSet string   `json:"IgnoreCharSet,omitempty"`
+		IgnoreKind    []string `json:"IgnoreKind,omitempty"`
+		Length        int      `json:"Length,omitempty"`
+		MaskType      string   `json:"MaskType"`
+		Offset        int      `json:"Offset,omitempty"`
+		Padding       int      `json:"Padding,omitempty"`
+		Reverse       bool     `json:"Reverse,omitempty"`
+		RuleName      string   `json:"RuleName"`
+		Value         string   `json:"Value,omitempty"`
+	} `json:"MaskRules"`
+	Rules []struct {
+		CnName      string `json:"CnName"`
+		Description string `json:"Description"`
+		Detect      struct {
+			KDict []string      `json:"KDict,omitempty"`
+			KReg  []interface{} `json:"KReg,omitempty"`
+			VDict []string      `json:"VDict,omitempty"`
+			VReg  []string      `json:"VReg,omitempty"`
+		} `json:"Detect"`
+		EnName  string `json:"EnName"`
+		ExtInfo struct {
+			CnGroup string `json:"CnGroup"`
+			EnGroup string `json:"EnGroup"`
+		} `json:"ExtInfo"`
+		Filter struct {
+			BAlgo []string      `json:"BAlgo"`
+			BDict []interface{} `json:"BDict,omitempty"`
+			BReg  []interface{} `json:"BReg,omitempty"`
+		} `json:"Filter,omitempty"`
+		InfoType string `json:"InfoType"`
+		Level    string `json:"Level"`
+		Mask     string `json:"Mask,omitempty"`
+		RuleID   int    `json:"RuleID"`
+		Verify   struct {
+			CDict []string      `json:"CDict,omitempty"`
+			CReg  []interface{} `json:"CReg,omitempty"`
+			VAlgo []string      `json:"VAlgo,omitempty"`
+		} `json:"Verify,omitempty"`
+		GroupName string `json:"GroupName,omitempty"`
+	} `json:"Rules"`
 }
