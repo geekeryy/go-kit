@@ -1,5 +1,4 @@
 ## Go-kit golang基础库
-[![Website](https://img.shields.io/website?url=https%3A%2F%2Fwww.jiangyang.me)](https://blog.jiangyang.me)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/comeonjy/go-kit)
 ![GitHub](https://img.shields.io/github/license/comeonjy/go-kit)
 ![GitHub issues](https://img.shields.io/github/issues/comeonjy/go-kit)

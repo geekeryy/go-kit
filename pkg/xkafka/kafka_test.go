@@ -13,7 +13,7 @@ import (
 
 func TestNew(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*50000)
-	cli, err := xkafka.New(ctx, `{"addrs":["172.18.80.32:9092"],"client_id":"go-kit"}`)
+	cli, err := xkafka.New(ctx, `{"addrs":["kafka.default.svc.cluster.local:9092"],"client_id":"go-kit"}`)
 	if err != nil {
 		t.Error(err)
 		return
