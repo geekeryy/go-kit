@@ -80,3 +80,34 @@ func UnEscaper() func(s string) string {
 		return re.ReplaceAllStringFunc(s, mapping)
 	}
 }
+
+func IdentifyHashType(hash string) string {
+	length := len(hash)
+	typeStr := ""
+
+	switch length {
+	case 32: // MD5
+		typeStr = "MD5"
+	case 40: // SHA-1
+		typeStr = "SHA-1"
+	case 56: // SHA-224
+		typeStr = "SHA-224"
+	case 64: // SHA-256
+		typeStr = "SHA-256"
+	case 96: // SHA-384
+		typeStr = "SHA-384"
+	case 128: // SHA-512
+		typeStr = "SHA-512"
+	default:
+		return ""
+	}
+
+	for i := 0; i < length; i++ {
+		c := hash[i]
+		if !(('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')) {
+			return ""
+		}
+	}
+
+	return typeStr
+}
