@@ -2,7 +2,10 @@ package search
 
 import (
 	"bytes"
+	"github.com/google/martian/log"
+	"os"
 	"regexp"
+	"strconv"
 	"unsafe"
 )
 
@@ -110,4 +113,17 @@ func IdentifyHashType(hash string) string {
 	}
 
 	return typeStr
+}
+
+func GetEnvInteger[T int | int8 | int32 | int64](key string, defaultVal T) T {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return defaultVal
+	}
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		log.Errorf("GetEnvInteger occur err: %s %s %d %v", key, value, defaultVal, err)
+		return defaultVal
+	}
+	return T(i)
 }
