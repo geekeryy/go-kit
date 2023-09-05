@@ -127,3 +127,22 @@ func GetEnvInteger[T int | int8 | int32 | int64](key string, defaultVal T) T {
 	}
 	return T(i)
 }
+
+func ArrayEqual[T comparable](a1, a2 []T) bool {
+	if len(a1) != len(a2) {
+		return false
+	}
+	m := make(map[T]int)
+	for _, v := range a1 {
+		m[v]++
+	}
+	for _, v := range a2 {
+		if _, ok := m[v]; ok {
+			m[v]--
+		}
+		if m[v] == 0 {
+			delete(m, v)
+		}
+	}
+	return len(m) == 0
+}
