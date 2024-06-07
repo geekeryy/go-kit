@@ -1,3 +1,4 @@
+.PHONY: proto g t
 
 g:
 	stringer -type Code  -linecomment ./pkg/xerror/code.go
